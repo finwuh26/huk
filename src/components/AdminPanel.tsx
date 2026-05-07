@@ -135,7 +135,6 @@ export default function AdminPanel() {
           ...pageData, 
           createdAt: new Date().toISOString() 
         });
-        alert('New page created successfully. (Reference ID: ' + newRef.id + ')');
         
         // ping webhook for new pages
         try {
@@ -144,9 +143,9 @@ export default function AdminPanel() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              title: pageData.title, // just the title
+              title: pageData.title,
               description: pageData.description,
-              url: `https://huk.finwuh.uk/page/${slug}`, // using the real domain as base maybe? Or just location origin if available but window.location might be the preview server, so using huk.finwuh.uk is probably better
+              url: `https://huk.finwuh.uk/page/${slug}`,
               imageUrl: pageData.imageUrl,
               targetSection: categoryName
             }) 
@@ -154,8 +153,8 @@ export default function AdminPanel() {
         } catch (e) {
           console.error("Webhook trigger failed", e);
         }
+        alert('New page created successfully. (Reference ID: ' + newRef.id + ')');
       }
-      alert('Content published successfully!');
       setEditingPage(null);
     } catch (e: any) {
       console.error('Failed to save page:', e);
@@ -173,6 +172,40 @@ export default function AdminPanel() {
   };
 
   const [isSavingUser, setIsSavingUser] = useState(false);
+
+  // Build the parliament cabinet map from users, checking both the legacy
+  // single `role` field (for parliamentary roles set via the quick dropdown)
+  // and the new `roles` array (for parliamentary roles set via the edit modal).
+  const buildCabinetMap = (userList: any[]): Record<string, string> => {
+    const basicRoles = new Set(['user', 'admin', 'owner', 'standard staff']);
+    const cabinetMap: Record<string, string> = {};
+
+    const addToMap = (roleKey: string, name: string) => {
+      if (cabinetMap[roleKey]) {
+        cabinetMap[roleKey] = `${cabinetMap[roleKey]}, ${name}`;
+      } else {
+        cabinetMap[roleKey] = name;
+      }
+    };
+
+    userList.forEach(u => {
+      const name: string = u.displayName || u.email;
+      // Legacy: parliamentary role stored as primary role
+      if (u.role && !basicRoles.has(u.role)) {
+        addToMap(u.role, name);
+      }
+      // New: parliamentary roles stored in the `roles` array
+      if (Array.isArray(u.roles)) {
+        u.roles.forEach((r: string) => {
+          if (r && !basicRoles.has(r)) {
+            addToMap(r, name);
+          }
+        });
+      }
+    });
+
+    return cabinetMap;
+  };
 
   const saveUserAccount = async () => {
     if (!editingUserAccount || isSavingUser) return;
@@ -192,20 +225,9 @@ export default function AdminPanel() {
         robloxId: editingUserAccount.robloxId || '',
       });
 
-      // Update local users list if needed (though onSnapshot should handle it)
-      // and trigger parliament sync
+      // Sync updated roles to the parliament cabinet map
       const updatedUsers = users.map(u => u.id === editingUserAccount.id ? { ...u, ...editingUserAccount } : u);
-      const newCabinetMap: Record<string, string> = {};
-      updatedUsers.forEach(u => {
-        if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-          const name = u.displayName || u.email;
-          if (newCabinetMap[u.role]) {
-            newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
-          } else {
-            newCabinetMap[u.role] = name;
-          }
-        }
-      });
+      const newCabinetMap = buildCabinetMap(updatedUsers);
       await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
 
       alert('User account updated and synced successfully.');
@@ -222,20 +244,9 @@ export default function AdminPanel() {
     if (role === 'user') return; // only admins/owners
     try {
       await updateDoc(doc(db, 'users', userId), { role: newRole });
-      
-      // Full sync logic using updated users
+
       const updatedUsers = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
-      const newCabinetMap: Record<string, string> = {};
-      updatedUsers.forEach(u => {
-        if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-          const name = u.displayName || u.email;
-          if (newCabinetMap[u.role]) {
-            newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
-          } else {
-            newCabinetMap[u.role] = name;
-          }
-        }
-      });
+      const newCabinetMap = buildCabinetMap(updatedUsers);
       await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
 
     } catch (e) {
@@ -566,17 +577,7 @@ export default function AdminPanel() {
               </div>
               <button 
                 onClick={async () => {
-                  const newCabinetMap: Record<string, string> = {};
-                  users.forEach(u => {
-                    if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-                      const name = u.displayName || u.email;
-                      if (newCabinetMap[u.role]) {
-                        newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
-                      } else {
-                        newCabinetMap[u.role] = name;
-                      }
-                    }
-                  });
+                  const newCabinetMap = buildCabinetMap(users);
                   const toSave = { ...parliamentData, cabinetMap: newCabinetMap };
                   await setDoc(doc(db, 'settings', 'parliament'), toSave, { merge: true });
                   alert('Saved parliament settings');
@@ -599,17 +600,7 @@ export default function AdminPanel() {
               <button 
                 className="bg-govuk-blue text-white px-4 py-2 font-bold"
                 onClick={async () => {
-                  const newCabinetMap: Record<string, string> = {};
-                  users.forEach(u => {
-                    if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-                      const name = u.displayName || u.email;
-                      if (newCabinetMap[u.role]) {
-                        newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
-                      } else {
-                        newCabinetMap[u.role] = name;
-                      }
-                    }
-                  });
+                  const newCabinetMap = buildCabinetMap(users);
                   await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
                   alert('Synced roles to Parliament');
                 }}
