@@ -55,6 +55,18 @@ service cloud.firestore {
              data.isAdopted is bool;
     }
 
+    function isValidSelfUserUpdate(data) {
+      return data.diff(resource.data).affectedKeys().hasOnly([
+        'displayName', 'lastLogin',
+        'discordLinked',
+        'robloxLinked'
+      ]) &&
+      (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+      (!('lastLogin' in data) || (data.lastLogin is string && data.lastLogin.size() <= 30)) &&
+      (!('discordLinked' in data) || data.discordLinked is bool) &&
+      (!('robloxLinked' in data) || data.robloxLinked is bool);
+    }
+
     // Validation Blueprint for Submissions 
     function isValidSubmission(data) {
       return data.keys().hasAll(['data', 'submittedAt', 'referenceId']) &&
@@ -121,12 +133,7 @@ service cloud.firestore {
                       )
                     );
       
-      allow update: if (isOwner(userId) || isAdmin()) && 
-                    // users can update their display name and last login
-                    (
-                      (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'email'])) ||
-                      isAdmin()
-                    );
+      allow update: if isAdmin() || (isOwner(userId) && isValidSelfUserUpdate(incoming()));
 
       allow delete: if isSystemOwner() && userId != request.auth.uid;
     }

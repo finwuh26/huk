@@ -56,9 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setUser(user);
-      if (user) {
-        const userEmail = user.email?.toLowerCase();
-        const isOwner = userEmail === 'personal@finwuh.uk';
+        if (user) {
+          const userEmail = user.email?.toLowerCase();
+          const isOwner = userEmail === 'personal@finwuh.uk';
         
         if (isOwner) {
           setRole('owner');
@@ -85,15 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (e) {
             console.warn('Owner background sync error:', e);
           }
-          setLoading(false);
-          return;
         }
 
         // Listen for role changes in real-time
         const userRef = doc(db, 'users', user.uid);
         unsubUser = onSnapshot(userRef, async (snapshot) => {
           if (snapshot.exists()) {
-            setRole(snapshot.data().role || 'user');
+            setRole(isOwner ? 'owner' : (snapshot.data().role || 'user'));
             setUserData(snapshot.data());
           } else {
             // New user: check if an admin pre-authorized this email
@@ -102,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const q = query(usersRef, where('email', '==', user.email));
               const allUsersSnap = await getDocs(q);
               
-              let preAuthRole = 'user';
+              let preAuthRole = isOwner ? 'owner' : 'user';
               let preAuthDisplayName = user.displayName || user.email?.split('@')[0];
               let preAuthId = null;
 
@@ -151,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         setRole(null);
+        setUserData(null);
         setLoading(false);
       }
     });

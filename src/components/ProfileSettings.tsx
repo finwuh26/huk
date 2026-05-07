@@ -9,16 +9,56 @@ export default function ProfileSettings() {
   const { user, role, userData } = useAuth();
 
   useEffect(() => {
+    type OAuthPayload = {
+      discordId?: string | null;
+      discordUsername?: string | null;
+      robloxId?: string | null;
+      robloxUsername?: string | null;
+    };
+
+    const buildProviderUpdate = (provider: string, payload: OAuthPayload = {}) => {
+      const update: Record<string, any> = {
+        [`${provider}Linked`]: true
+      };
+      const canWriteProviderProfileFields = role === 'admin' || role === 'owner';
+
+      if (provider === 'discord' && canWriteProviderProfileFields) {
+        if (typeof payload.discordId === 'string') update.discordId = payload.discordId;
+        if (typeof payload.discordUsername === 'string') update.discordUsername = payload.discordUsername;
+      }
+
+      if (provider === 'roblox' && canWriteProviderProfileFields) {
+        if (typeof payload.robloxId === 'string') update.robloxId = payload.robloxId;
+        if (typeof payload.robloxUsername === 'string') update.robloxUsername = payload.robloxUsername;
+      }
+
+      return update;
+    };
+
     // Handle URL search params if redirected back
     const params = new URLSearchParams(window.location.search);
+    const oauthProvider = params.get('oauthProvider');
     const robloxCode = params.get('robloxCode');
     const discordCode = params.get('discordCode');
+    const robloxId = params.get('robloxId');
+    const robloxUsername = params.get('robloxUsername');
+    const discordId = params.get('discordId');
+    const discordUsername = params.get('discordUsername');
 
-    if ((robloxCode || discordCode) && user) {
-      const provider = robloxCode ? 'roblox' : 'discord';
-      updateDoc(doc(db, 'users', user.uid), {
-        [`${provider}Linked`]: true
-      }).then(() => {
+    // Legacy fallback for older callback URLs that still include *Code params.
+    if ((oauthProvider === 'roblox' || oauthProvider === 'discord' || robloxCode || discordCode) && user) {
+      const provider = oauthProvider === 'roblox' || oauthProvider === 'discord'
+        ? oauthProvider
+        : (robloxCode ? 'roblox' : 'discord');
+      updateDoc(
+        doc(db, 'users', user.uid),
+        buildProviderUpdate(provider, {
+          robloxId,
+          robloxUsername,
+          discordId,
+          discordUsername
+        })
+      ).then(() => {
         alert(`Successfully linked ${provider}!`);
         // Clean up URL
         const newUrl = window.location.pathname;
@@ -40,9 +80,7 @@ export default function ProfileSettings() {
         const provider = event.data?.provider;
         if (user && provider) {
           try {
-            await updateDoc(doc(db, 'users', user.uid), {
-              [`${provider}Linked`]: true
-            });
+            await updateDoc(doc(db, 'users', user.uid), buildProviderUpdate(provider, event.data));
             alert(`Successfully linked ${provider}!`);
           } catch (e) {
             console.error('Failed to update user profile', e);
@@ -52,7 +90,7 @@ export default function ProfileSettings() {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [user]);
+  }, [user, role]);
 
   const handleRobloxConnect = () => {
     const connectUrl = `/api/auth/roblox/url`;
