@@ -69,9 +69,10 @@ service cloud.firestore {
 
     // Validation Blueprint for Submissions 
     function isValidSubmission(data) {
-      return data.keys().hasAll(['data', 'submittedAt', 'referenceId']) &&
+      return data.keys().hasAll(['data', 'createdAt', 'referenceId', 'authorId']) &&
              data.data is map &&
-             data.submittedAt is string && data.submittedAt.size() <= 30 &&
+             data.createdAt is timestamp &&
+             data.authorId == request.auth.uid &&
              data.referenceId is string && data.referenceId.size() <= 20;
     }
 
