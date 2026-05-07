@@ -1,0 +1,180 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false; // catch all deny
+    }
+
+    // Primitives
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isUserRole(role) { 
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role; 
+    }
+    function isUserNotRole(role) { 
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != role; 
+    }
+    function isBootstrapOwner() {
+      return isSignedIn() && request.auth.token.email != null && request.auth.token.email == 'personal@finwuh.uk';
+    }
+    function isAdmin() { return isUserNotRole('user') || isBootstrapOwner(); }
+    function isSystemOwner() { return isUserRole('owner') || isBootstrapOwner(); }
+
+    // Validation Blueprint for Categories
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 50 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() <= 50;
+    }
+
+    // Validation Blueprint for Pages
+    function isValidPage(data) {
+      return data.keys().hasAll(['title', 'slug', 'categoryId', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 150 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() <= 150 &&
+             data.categoryId is string && data.categoryId.size() <= 128 &&
+             data.createdAt is string && data.createdAt.size() <= 30; // ISO string 
+    }
+
+    // Validation Blueprint for Users
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt', 'isAdopted']) &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role is string && data.role.size() <= 50 &&
+             data.createdAt is string && data.createdAt.size() <= 30 &&
+             data.isAdopted is bool;
+    }
+
+    // Validation Blueprint for Submissions 
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['data', 'submittedAt', 'referenceId']) &&
+             data.data is map &&
+             data.submittedAt is string && data.submittedAt.size() <= 30 &&
+             data.referenceId is string && data.referenceId.size() <= 20;
+    }
+
+    // Validation Blueprint for Petitions
+    function isValidPetition(data) {
+      return data.keys().hasAll(['title', 'description', 'status', 'creatorId', 'creatorName', 'createdAt', 'signatureCount']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 5000 &&
+             data.status is string && (data.status == 'open' || data.status == 'closed' || data.status == 'rejected') &&
+             data.creatorId is string && data.creatorId == request.auth.uid &&
+             data.creatorName is string && data.creatorName.size() > 0 && data.creatorName.size() <= 100 &&
+             data.createdAt is timestamp &&
+             data.signatureCount is number;
+    }
+
+    // Validation Blueprint for Signatures
+    function isValidSignature(data) {
+      return data.keys().hasAll(['signedAt', 'name']) &&
+             data.signedAt is timestamp &&
+             data.name is string && data.name.size() <= 100;
+    }
+
+    // Validation Blueprint for Feedback
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['type', 'details', 'createdAt', 'resolved']) &&
+             data.type is string && data.type.size() > 0 &&
+             data.details is string && data.details.size() > 0 &&
+             data.createdAt is string &&
+             data.resolved is bool;
+    }
+
+    match /settings/{settingId} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isSystemOwner() || isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isValidFeedback(incoming()); // Publicly or semi public
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow list: if isAdmin() || (isSignedIn() && request.auth.token.email != null && resource.data.email == request.auth.token.email);
+      
+      // Creating user profiles
+      // MUST NOT set themselves as admin unless they are already owner or adopting a pre-authorized role
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    (
+                      incoming().role == 'user' || 
+                      isSystemOwner() || 
+                      (
+                        incoming().isAdopted == true && 
+                        'preAuthId' in incoming() && 
+                        exists(/databases/$(database)/documents/users/$(incoming().preAuthId)) && 
+                        get(/databases/$(database)/documents/users/$(incoming().preAuthId)).data.role == incoming().role && 
+                        get(/databases/$(database)/documents/users/$(incoming().preAuthId)).data.email == request.auth.token.email
+                      )
+                    );
+      
+      allow update: if (isOwner(userId) || isAdmin()) && 
+                    // users can update their display name and last login
+                    (
+                      (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'email'])) ||
+                      isAdmin()
+                    );
+
+      allow delete: if isSystemOwner() && userId != request.auth.uid;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /pages/{pageId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidPage(incoming());
+      // Admin update pattern
+      allow update: if isAdmin() && 
+                    incoming().diff(existing()).affectedKeys().hasAny(['title', 'content', 'categoryId', 'description', 'order', 'slug', 'imageUrl', 'pageType', 'questions', 'updatedAt', 'authorId']);
+      allow delete: if isAdmin();
+
+      match /submissions/{subId} {
+        // Users can create submissions, but only list/get their own (handled by list query with where but for this app it's open creation)
+        allow create: if isValidSubmission(incoming()); 
+        allow list, get: if isAdmin();
+        allow delete: if isAdmin();
+        allow update: if false; // submissions are immutable
+      }
+    }
+
+    match /petitions/{petitionId} {
+      allow read: if true; // Publicly readable
+      allow create: if isSignedIn() && isValidPetition(incoming()) && incoming().signatureCount == 1; // start with 1 sig
+      
+      // The update pattern is split into actions
+      allow update: if isSignedIn() && (
+        // Action: Sign Petition
+        (incoming().diff(existing()).affectedKeys().hasOnly(['signatureCount']) && 
+         incoming().signatureCount == existing().signatureCount + 1 &&
+         existsAfter(/databases/$(database)/documents/petitions/$(petitionId)/signatures/$(request.auth.uid))) ||
+        
+        // Action: Admin Response
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['response', 'signatureCount'])) ||
+
+        // Action: System Owner Escape Hatch (e.g., closing petition)
+        (isSystemOwner() && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+      
+      allow delete: if isAdmin();
+
+      match /signatures/{userId} {
+        allow get: if true; // check if signed
+        allow list: if false; 
+        allow create: if isOwner(userId) && isValidSignature(incoming());
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}

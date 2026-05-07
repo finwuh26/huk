@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "Page": {
+      "title": "Page",
+      "description": "A content page within a category",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "slug": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "content": { "type": "string", "description": "Markdown content" },
+        "formConfig": { 
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": { "type": "object" }
+            }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["title", "slug", "categoryId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A high-level category for pages",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["name", "slug"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and role management",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["owner", "admin", "standard staff", "user"] },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAdopted": { "type": "boolean" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Form submission data from a page",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["data", "createdAt"]
+    },
+    "Petition": {
+      "title": "Petition",
+      "description": "A public petition",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed", "rejected"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "signatureCount": { "type": "number" }
+      },
+      "required": ["title", "description", "status", "createdBy", "createdAt"]
+    },
+    "Signature": {
+      "title": "Signature",
+      "description": "A signature on a petition",
+      "type": "object",
+      "properties": {
+        "signedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["signedAt", "userId"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "value": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/pages/{pageId}": {
+      "schema": "Page",
+      "description": "CMS pages"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Top-level categories"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User roles and metadata"
+    },
+    "/pages/{pageId}/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Submissions for a specific page"
+    },
+    "/petitions/{petitionId}": {
+      "schema": "Petition",
+      "description": "Public petitions"
+    },
+    "/petitions/{petitionId}/signatures/{userId}": {
+      "schema": "Signature",
+      "description": "Signatures on petitions"
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Global settings like maintenanceMode"
+    }
+  }
+}

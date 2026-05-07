@@ -1,0 +1,43 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "pages": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'standard staff' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'owner' || auth.token.email == 'jimstke@gmail.com')"
+    },
+    "users": {
+      ".read": true,
+      "$uid": {
+         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'owner' || auth.uid == $uid || auth.token.email == 'jimstke@gmail.com')"
+      }
+    },
+    "categories": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'owner' || auth.token.email == 'jimstke@gmail.com')"
+    },
+    "submissions": {
+      "$pageId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'owner' || auth.token.email == 'jimstke@gmail.com')",
+        ".write": true
+      }
+    },
+    "settings": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'owner' || auth.token.email == 'jimstke@gmail.com')"
+    },
+    "petitions": {
+      ".read": true,
+      ".write": "auth != null",
+      "$petitionId": {
+        "response": {
+          ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() != null || auth.token.email == 'jimstke@gmail.com')"
+        }
+      }
+    },
+    "signatures": {
+      ".read": true,
+      ".write": "auth != null"
+    }
+  }
+}

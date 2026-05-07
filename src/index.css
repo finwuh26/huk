@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-govuk-black: #0b0c0c;
+  --color-govuk-blue: #1d70b8;
+  --color-govuk-blue-hover: #003078;
+  --color-govuk-green: #00703c;
+  --color-govuk-green-hover: #005a30;
+  --color-govuk-green-dark: #002d18;
+  --color-govuk-grey: #b1b4b6;
+  --color-govuk-grey-light: #f3f2f1;
+  --color-govuk-text: #0b0c0c;
+  --color-govuk-text-secondary: #505a5f;
+  --color-govuk-focus: #ffdd00;
+  --color-govuk-border: #b1b4b6;
+  --color-ho-purple: #9325b2;
+  --color-ho-purple-light: #a945c1;
+  --color-ho-purple-dark: #6d1b83;
+  
+  --color-parliament-green: #006548;
+  --color-parliament-green-hover: #004b35;
+  --color-parliament-green-light: #e6efec;
+  
+  --font-govuk: "Inter", "nta", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-govuk text-govuk-text bg-white antialiased;
+    font-size: 19px;
+    line-height: 1.3157894737;
+  }
+
+  a {
+    @apply underline decoration-1 underline-offset-4 decoration-govuk-blue hover:text-govuk-blue-hover hover:decoration-2;
+  }
+
+  h1 {
+    @apply text-[48px] font-bold mb-8 leading-tight;
+  }
+
+  h2 {
+    @apply text-[36px] font-bold mb-4 leading-tight;
+  }
+
+  h3 {
+    @apply text-[24px] font-bold mb-4 leading-tight;
+  }
+}
+
+.markdown-body {
+  @apply text-[19px] leading-[1.3] text-govuk-text;
+}
+
+.markdown-body p {
+  @apply mb-[20px];
+}
+
+.markdown-body h2 {
+  @apply text-[32px] font-bold mt-[40px] mb-[20px] leading-tight;
+}
+
+.markdown-body h3 {
+  @apply text-[24px] font-bold mt-[30px] mb-[15px] leading-tight;
+}
+
+.markdown-body ul {
+  @apply list-disc pl-[20px] mb-[20px] space-y-[5px];
+}
+
+.markdown-body ol {
+  @apply list-decimal pl-[20px] mb-[20px] space-y-[5px];
+}
+
+.markdown-body strong {
+  @apply font-bold;
+}
+
+.markdown-body blockquote {
+  @apply border-l-10 border-govuk-grey pl-[20px] my-[20px] italic text-govuk-text-secondary;
+}
+
+/* GDS Spacing Scale */
+.govuk-width-container {
+  @apply max-w-[1020px] mx-auto px-4 sm:px-8;
+}
+
+.govuk-main-wrapper {
+  @apply py-8 sm:py-12;
+}
+
+.govuk-lead {
+  @apply text-[24px] leading-snug mb-6;
+}
