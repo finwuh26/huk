@@ -28,7 +28,12 @@ export default function ProfileSettings() {
 
     const handleMessage = async (event: MessageEvent) => {
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+      // Accept messages from the same origin (production/preview) and known dev environments
+      if (
+        origin !== window.location.origin &&
+        !origin.endsWith('.run.app') &&
+        !origin.includes('localhost')
+      ) {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {

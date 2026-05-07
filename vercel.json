@@ -1,15 +1,13 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
       "source": "/auth/:path*",
-      "destination": "/auth/:path*"
+      "destination": "/api/auth/:path*"
     },
     {
       "source": "/((?!api|auth|assets|.*\\..*).*)",
