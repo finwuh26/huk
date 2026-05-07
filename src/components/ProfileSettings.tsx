@@ -9,16 +9,44 @@ export default function ProfileSettings() {
   const { user, role, userData } = useAuth();
 
   useEffect(() => {
+    const buildProviderUpdate = (provider: string, payload: any = {}) => {
+      const update: Record<string, any> = {
+        [`${provider}Linked`]: true
+      };
+
+      if (provider === 'discord') {
+        if (typeof payload.discordId === 'string') update.discordId = payload.discordId;
+        if (typeof payload.discordUsername === 'string') update.discordUsername = payload.discordUsername;
+      }
+
+      if (provider === 'roblox') {
+        if (typeof payload.robloxId === 'string') update.robloxId = payload.robloxId;
+        if (typeof payload.robloxUsername === 'string') update.robloxUsername = payload.robloxUsername;
+      }
+
+      return update;
+    };
+
     // Handle URL search params if redirected back
     const params = new URLSearchParams(window.location.search);
     const robloxCode = params.get('robloxCode');
     const discordCode = params.get('discordCode');
+    const robloxId = params.get('robloxId');
+    const robloxUsername = params.get('robloxUsername');
+    const discordId = params.get('discordId');
+    const discordUsername = params.get('discordUsername');
 
     if ((robloxCode || discordCode) && user) {
       const provider = robloxCode ? 'roblox' : 'discord';
-      updateDoc(doc(db, 'users', user.uid), {
-        [`${provider}Linked`]: true
-      }).then(() => {
+      updateDoc(
+        doc(db, 'users', user.uid),
+        buildProviderUpdate(provider, {
+          robloxId,
+          robloxUsername,
+          discordId,
+          discordUsername
+        })
+      ).then(() => {
         alert(`Successfully linked ${provider}!`);
         // Clean up URL
         const newUrl = window.location.pathname;
@@ -40,9 +68,7 @@ export default function ProfileSettings() {
         const provider = event.data?.provider;
         if (user && provider) {
           try {
-            await updateDoc(doc(db, 'users', user.uid), {
-              [`${provider}Linked`]: true
-            });
+            await updateDoc(doc(db, 'users', user.uid), buildProviderUpdate(provider, event.data));
             alert(`Successfully linked ${provider}!`);
           } catch (e) {
             console.error('Failed to update user profile', e);
