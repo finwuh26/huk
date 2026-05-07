@@ -31,14 +31,17 @@ async function getDynamicMetaTags(urlPath: string) {
 
         if (urlPath.startsWith("/page/") || urlPath.includes("/browse/")) {
           collectionId = "pages";
-          const parts = urlPath.split("/");
+          const pathOnly = urlPath.split("?")[0];
+          const parts = pathOnly.split("/");
           slug = parts[parts.length - 1];
         } else if (urlPath.startsWith("/category/")) {
           collectionId = "categories";
-          slug = urlPath.split("/")[2];
+          const pathOnly = urlPath.split("?")[0];
+          slug = pathOnly.split("/")[2];
         } else if (urlPath.startsWith("/petitions/")) {
           collectionId = "petitions";
-          slug = urlPath.split("/")[2];
+          const pathOnly = urlPath.split("?")[0];
+          slug = pathOnly.split("/")[2];
         }
 
         if (slug && collectionId) {
@@ -87,15 +90,15 @@ async function getDynamicMetaTags(urlPath: string) {
 
           if (data && data.fields) {
             if (collectionId === "pages") {
-              title = data.fields.title?.stringValue || title;
+              title = (data.fields.title?.stringValue || title) + " - HUK.GOV";
               description = data.fields.description?.stringValue || description;
               imageUrl = data.fields.imageUrl?.stringValue || imageUrl;
             } else if (collectionId === "categories") {
-              title = data.fields.name?.stringValue || title;
+              title = (data.fields.name?.stringValue || title) + " - HUK.GOV";
               description = data.fields.description?.stringValue || description;
               imageUrl = data.fields.flagUrl?.stringValue || imageUrl;
             } else if (collectionId === "petitions") {
-              title = data.fields.title?.stringValue || title;
+              title = (data.fields.title?.stringValue || title) + " - HUK.GOV Petition";
               description = data.fields.problem?.stringValue || description;
             }
           }
@@ -111,6 +114,7 @@ async function getDynamicMetaTags(urlPath: string) {
       <meta property="og:title" content="${title.replace(/"/g, "&quot;")}" />
       <meta property="og:description" content="${description.replace(/"/g, "&quot;")}" />
       <meta property="og:image" content="${imageUrl}" />
+      <meta property="og:url" content="https://huk.finwuh.uk${urlPath.split('?')[0]}" />
       <meta property="og:type" content="website" />
       <meta name="twitter:card" content="summary_large_image" />
     `;
@@ -154,7 +158,7 @@ async function getDynamicMetaTags(urlPath: string) {
     if (!process.env.ROBLOX_CLIENT_ID) {
       return res.json({ alert: 'OAuth not configured: Missing ROBLOX_CLIENT_ID environment variable. Please configure it in your settings.' });
     }
-    const redirectUri = `https://huk.finwuh.uk/auth/roblox/callback`;
+    const redirectUri = `${req.protocol}://${req.get('host')}/auth/roblox/callback`;
     const params = new URLSearchParams({
       client_id: process.env.ROBLOX_CLIENT_ID,
       redirect_uri: redirectUri,
@@ -164,16 +168,19 @@ async function getDynamicMetaTags(urlPath: string) {
     res.json({ url: `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}` });
   });
 
-  app.get(['/auth/roblox/callback', '/auth/roblox/callback/'], async (req, res) => {
+  app.get(['/auth/roblox/callback', '/auth/roblox/callback/', '/api/auth/roblox/callback'], async (req, res) => {
+    // If we have a code, the frontend should ideally exchange it. 
+    // For now, we redirect to profile with the code in the URL so the frontend can handle the linkage.
+    const code = req.query.code;
     res.send(`
       <html>
         <body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'roblox' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'roblox', code: '${code}' }, '*');
               window.close();
             } else {
-              window.location.href = '/profile';
+              window.location.href = '/profile?robloxCode=${code}';
             }
           </script>
           <p>Roblox authentication successful. This window should close automatically.</p>
@@ -258,9 +265,10 @@ async function getDynamicMetaTags(urlPath: string) {
     
     // SPA fallback: send index.html for any unknown routes, with dynamic meta tags injected
     app.get('*', async (req, res) => {
-      // Skip API and auth routes
+      // Skip API and auth routes - ensure we only 404 if they don't exist
       if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
-        return res.status(404).json({ error: 'Not Found' });
+        // If we reached here, it means no previous handler caught it
+        return res.status(404).json({ error: 'API endpoint or Auth route not found' });
       }
 
       // If it looks like a file (has an extension), don't serve index.html
@@ -272,14 +280,14 @@ async function getDynamicMetaTags(urlPath: string) {
         let template = await fs.readFile(path.join(distPath, 'index.html'), 'utf8');
         const dynamicMeta = await getDynamicMetaTags(req.originalUrl);
         
-        // In production, the index.html already has some meta tags. We want to replace the title and add our OG tags.
-        // We look for the head tag and inject right after it, or replace existing meta tags if we are feeling brave.
-        // Safer to just replace the whole head area or at least the title if it exists.
+        // In production, the index.html already has some meta tags.
+        // We look for the head tag and inject right after it, or replace existing meta tags.
         if (template.includes('<title>')) {
-           template = template.replace(/<title>.*?<\/title>/s, dynamicMeta);
-        } else {
-           template = template.replace('<head>', `<head>\n${dynamicMeta}`);
+           template = template.replace(/<title>.*?<\/title>/s, ''); // Remove old title
         }
+        
+        // Inject our meta tags at the start of head
+        template = template.replace('<head>', `<head>\n${dynamicMeta}`);
         
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e) {

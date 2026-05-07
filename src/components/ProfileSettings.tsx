@@ -9,6 +9,23 @@ export default function ProfileSettings() {
   const { user, role, userData } = useAuth();
 
   useEffect(() => {
+    // Handle URL search params if redirected back
+    const params = new URLSearchParams(window.location.search);
+    const robloxCode = params.get('robloxCode');
+    const discordCode = params.get('discordCode');
+
+    if ((robloxCode || discordCode) && user) {
+      const provider = robloxCode ? 'roblox' : 'discord';
+      updateDoc(doc(db, 'users', user.uid), {
+        [`${provider}Linked`]: true
+      }).then(() => {
+        alert(`Successfully linked ${provider}!`);
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }).catch(e => console.error('Failed to update user profile', e));
+    }
+
     const handleMessage = async (event: MessageEvent) => {
       const origin = event.origin;
       if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {

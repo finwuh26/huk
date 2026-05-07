@@ -129,11 +129,13 @@ export default function AdminPanel() {
       
       if (page.id) {
         await updateDoc(doc(db, 'pages', page.id), pageData);
+        alert('Page updated successfully.');
       } else {
         const newRef = await addDoc(collection(db, 'pages'), { 
           ...pageData, 
           createdAt: new Date().toISOString() 
         });
+        alert('New page created successfully. (Reference ID: ' + newRef.id + ')');
         
         // ping webhook for new pages
         try {

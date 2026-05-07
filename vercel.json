@@ -4,8 +4,12 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/(api|auth)/:path*",
+      "source": "/api/:path*",
       "destination": "/api/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "/auth/:path*"
     },
     {
       "source": "/((?!api|auth|assets|.*\\..*).*)",
