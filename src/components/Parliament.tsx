@@ -58,25 +58,25 @@ export default function Parliament() {
             "Leader of the House of Commons", 
             "Speaker of the House of Commons"
           ].map(role => (
-            <RoleCard key={role} role={role} name={cabinetMap[role] || "Vacant"} />
+            <RoleCard key={role} role={role} name={cabinetMap ? cabinetMap[role] || "Vacant" : "Vacant"} />
           ))}
         </div>
 
-        {Object.entries(cabinetMap).some(([role]) => role === "Member of Parliament") && (
+        {cabinetMap && Object.entries(cabinetMap).some(([role]) => role === "Member of Parliament") && (
           <>
             <h2 className="text-2xl font-bold mb-6">Members of Parliament</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(cabinetMap)
                 .filter(([role]) => role === "Member of Parliament")
                 .map(([role, name], idx) => (
-                  <RoleCard key={idx} role={role} name={name} />
+                  <RoleCard key={idx} role={role} name={name as string} />
                 ))}
             </div>
           </>
         )}
         
         {/* Any other roles not explicitly in the top list or MP list */}
-        {Object.entries(cabinetMap).some(([role]) => 
+        {cabinetMap && Object.entries(cabinetMap).some(([role]) => 
           ![
             "Prime Minister", "Deputy Prime Minister", "Chancellor of the Exchequer", 
             "Secretary of State for Wales", "Minister for DCMS", "Home Secretary", 
@@ -99,7 +99,7 @@ export default function Parliament() {
                   ].includes(role)
                 )
                 .map(([role, name]) => (
-                  <RoleCard key={role} role={role} name={name} />
+                  <RoleCard key={role} role={role} name={name as string} />
                 ))}
             </div>
           </div>

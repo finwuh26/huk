@@ -13,17 +13,20 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    function isUserRole(role) { 
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role; 
+    
+    // Improved role checking
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'personal@finwuh.uk' || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'user')
+      );
     }
-    function isUserNotRole(role) { 
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != role; 
+    function isSystemOwner() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'personal@finwuh.uk' || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner')
+      );
     }
-    function isBootstrapOwner() {
-      return isSignedIn() && request.auth.token.email != null && request.auth.token.email == 'personal@finwuh.uk';
-    }
-    function isAdmin() { return isUserNotRole('user') || isBootstrapOwner(); }
-    function isSystemOwner() { return isUserRole('owner') || isBootstrapOwner(); }
 
     // Validation Blueprint for Categories
     function isValidCategory(data) {
