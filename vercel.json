@@ -10,7 +10,7 @@
       "destination": "/api/auth/:path*"
     },
     {
-      "source": "/((?!api|auth|assets|.*\\..*).*)",
+      "source": "/:path((?!api|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
