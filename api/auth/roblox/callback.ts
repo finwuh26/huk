@@ -43,14 +43,14 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const payload = JSON.stringify({
+  const payloadObject = {
     type: 'OAUTH_AUTH_SUCCESS',
     provider: 'roblox',
-    code,
     robloxId,
     robloxUsername
-  }).replace(/</g, '\\u003c');
-  const profileUrl = `/profile?robloxCode=${encodeURIComponent(code)}&robloxId=${encodeURIComponent(robloxId)}&robloxUsername=${encodeURIComponent(robloxUsername)}`;
+  };
+  const payloadBase64 = Buffer.from(JSON.stringify(payloadObject), 'utf8').toString('base64');
+  const profileUrl = `/profile?oauthProvider=roblox&robloxId=${encodeURIComponent(robloxId)}&robloxUsername=${encodeURIComponent(robloxUsername)}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(`<!DOCTYPE html>
@@ -58,7 +58,8 @@ export default async function handler(req: any, res: any) {
   <body>
     <script>
       if (window.opener) {
-        window.opener.postMessage(${payload}, window.location.origin);
+        const payload = JSON.parse(atob('${payloadBase64}'));
+        window.opener.postMessage(payload, window.location.origin);
         window.close();
       } else {
         window.location.href = '${profileUrl}';

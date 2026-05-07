@@ -9,7 +9,14 @@ export default function ProfileSettings() {
   const { user, role, userData } = useAuth();
 
   useEffect(() => {
-    const buildProviderUpdate = (provider: string, payload: any = {}) => {
+    type OAuthPayload = {
+      discordId?: string | null;
+      discordUsername?: string | null;
+      robloxId?: string | null;
+      robloxUsername?: string | null;
+    };
+
+    const buildProviderUpdate = (provider: string, payload: OAuthPayload = {}) => {
       const update: Record<string, any> = {
         [`${provider}Linked`]: true
       };
@@ -29,6 +36,7 @@ export default function ProfileSettings() {
 
     // Handle URL search params if redirected back
     const params = new URLSearchParams(window.location.search);
+    const oauthProvider = params.get('oauthProvider');
     const robloxCode = params.get('robloxCode');
     const discordCode = params.get('discordCode');
     const robloxId = params.get('robloxId');
@@ -36,8 +44,10 @@ export default function ProfileSettings() {
     const discordId = params.get('discordId');
     const discordUsername = params.get('discordUsername');
 
-    if ((robloxCode || discordCode) && user) {
-      const provider = robloxCode ? 'roblox' : 'discord';
+    if ((oauthProvider === 'roblox' || oauthProvider === 'discord' || robloxCode || discordCode) && user) {
+      const provider = oauthProvider === 'roblox' || oauthProvider === 'discord'
+        ? oauthProvider
+        : (robloxCode ? 'roblox' : 'discord');
       updateDoc(
         doc(db, 'users', user.uid),
         buildProviderUpdate(provider, {
