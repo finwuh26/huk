@@ -19,60 +19,99 @@ async function startServer() {
     console.error("Could not load firebase-applet-config.json");
   }
 
-  async function getDynamicMetaTags(urlPath: string) {
+async function getDynamicMetaTags(urlPath: string) {
     let title = "HUK.GOV";
     let description = "Official Government Portal";
     let imageUrl = "https://imgs.search.brave.com/f1xmXIsVsNucoVXHA7KurMkOsPZK2lyMQoH_XT2sLsQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/YnJhbmRmZXRjaC5p/by9pZFByZEQxTnlB/L3RoZW1lL2xpZ2h0/L3N5bWJvbC5zdmc_/Yz0xYnhpZDY0TXVw/N2FjemV3U0FZTVgm/dD0xNzEzODg0OTY0/NTM5";
 
     try {
-      if (firebaseConfig.projectId && urlPath.startsWith('/page/')) {
-        const slug = urlPath.split('/')[2];
-        const apiUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents/pages/${slug}?key=${firebaseConfig.apiKey}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.fields) {
-            title = data.fields.title?.stringValue || title;
-            description = data.fields.description?.stringValue || description;
-            if (data.fields.imageUrl?.stringValue) {
-              imageUrl = data.fields.imageUrl.stringValue;
-            }
-          }
+      if (firebaseConfig.projectId) {
+        let slug = "";
+        let collectionId = "";
+
+        if (urlPath.startsWith("/page/") || urlPath.includes("/browse/")) {
+          collectionId = "pages";
+          const parts = urlPath.split("/");
+          slug = parts[parts.length - 1];
+        } else if (urlPath.startsWith("/category/")) {
+          collectionId = "categories";
+          slug = urlPath.split("/")[2];
+        } else if (urlPath.startsWith("/petitions/")) {
+          collectionId = "petitions";
+          slug = urlPath.split("/")[2];
         }
-      } else if (firebaseConfig.projectId && urlPath.startsWith('/category/')) {
-        const slug = urlPath.split('/')[2];
-        const apiUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents/categories/${slug}?key=${firebaseConfig.apiKey}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.fields) {
-            title = data.fields.name?.stringValue || title;
-            description = data.fields.description?.stringValue || description;
-            if (data.fields.flagUrl?.stringValue) {
-              imageUrl = data.fields.flagUrl.stringValue;
-            }
+
+        if (slug && collectionId) {
+          // Use StructuredQuery to find by slug field
+          const queryUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents:runQuery?key=${firebaseConfig.apiKey}`;
+          const queryBody = {
+            structuredQuery: {
+              from: [{ collectionId }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: collectionId === "petitions" ? "__name__" : "slug" },
+                  op: "EQUAL",
+                  value: { stringValue: slug },
+                },
+              },
+              limit: 1,
+            },
+          };
+
+          // Petitions are looked up by document ID (name), while others use slug field
+          if (collectionId === "petitions") {
+            // Update mapping for petition ID
+             queryBody.structuredQuery.where.fieldFilter.field.fieldPath = "__name__";
+             // Note: __name__ filter requires the full resource path or the ID depending on version, 
+             // but usually document ID works for simple fetches. 
+             // Actually, for petitions it's easier to just fetch the document directly.
           }
-        }
-      } else if (firebaseConfig.projectId && urlPath.startsWith('/petitions/')) {
-        const id = urlPath.split('/')[2];
-        const apiUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents/petitions/${id}?key=${firebaseConfig.apiKey}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
+
+          let data: any = null;
+          if (collectionId === "petitions") {
+             const docUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents/petitions/${slug}?key=${firebaseConfig.apiKey}`;
+             const res = await fetch(docUrl);
+             if (res.ok) data = await res.json();
+          } else {
+             const res = await fetch(queryUrl, {
+               method: "POST",
+               body: JSON.stringify(queryBody),
+             });
+             if (res.ok) {
+               const queryRes = await res.json();
+               if (queryRes && queryRes.length > 0 && queryRes[0].document) {
+                 data = queryRes[0].document;
+               }
+             }
+          }
+
           if (data && data.fields) {
-            title = data.fields.title?.stringValue || title;
-            description = data.fields.problem?.stringValue || description;
+            if (collectionId === "pages") {
+              title = data.fields.title?.stringValue || title;
+              description = data.fields.description?.stringValue || description;
+              imageUrl = data.fields.imageUrl?.stringValue || imageUrl;
+            } else if (collectionId === "categories") {
+              title = data.fields.name?.stringValue || title;
+              description = data.fields.description?.stringValue || description;
+              imageUrl = data.fields.flagUrl?.stringValue || imageUrl;
+            } else if (collectionId === "petitions") {
+              title = data.fields.title?.stringValue || title;
+              description = data.fields.problem?.stringValue || description;
+            }
           }
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Meta tags error:", e);
+    }
 
     return `
       <title>${title}</title>
       <meta name="description" content="${description}" />
-      <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-      <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+      <meta property="og:title" content="${title.replace(/"/g, "&quot;")}" />
+      <meta property="og:description" content="${description.replace(/"/g, "&quot;")}" />
       <meta property="og:image" content="${imageUrl}" />
+      <meta property="og:type" content="website" />
       <meta name="twitter:card" content="summary_large_image" />
     `;
   }
@@ -217,11 +256,23 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, { index: false })); // Disable automatic index.html serving to allow dynamic catch-all below
     // SPA fallback: send index.html for any unknown routes, with dynamic meta tags injected
-    app.get('*all', async (req, res) => {
+    app.get('*', async (req, res) => {
+      if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/auth')) {
+        return res.status(404).json({ error: 'Not Found' });
+      }
       try {
         let template = await fs.readFile(path.join(distPath, 'index.html'), 'utf8');
         const dynamicMeta = await getDynamicMetaTags(req.originalUrl);
-        template = template.replace(/<title>.*?<\/title>/s, dynamicMeta);
+        
+        // In production, the index.html already has some meta tags. We want to replace the title and add our OG tags.
+        // We look for the head tag and inject right after it, or replace existing meta tags if we are feeling brave.
+        // Safer to just replace the whole head area or at least the title if it exists.
+        if (template.includes('<title>')) {
+           template = template.replace(/<title>.*?<\/title>/s, dynamicMeta);
+        } else {
+           template = template.replace('<head>', `<head>\n${dynamicMeta}`);
+        }
+        
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e) {
         res.sendFile(path.join(distPath, 'index.html'));

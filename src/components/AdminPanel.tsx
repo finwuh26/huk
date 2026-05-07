@@ -196,18 +196,20 @@ export default function AdminPanel() {
     try {
       await updateDoc(doc(db, 'users', userId), { role: newRole });
       
-      // Auto-sync roles to Parliament
-      const newCabinetMap: Record<string, string> = { ...(parliamentData.cabinetMap || {}) };
-      const u = users.find(uu => uu.id === userId);
-      if (u) {
+      // Full sync logic using updated users
+      const updatedUsers = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
+      const newCabinetMap: Record<string, string> = {};
+      updatedUsers.forEach(u => {
         if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-          delete newCabinetMap[u.role];
+          const name = u.displayName || u.email;
+          if (newCabinetMap[u.role]) {
+            newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
+          } else {
+            newCabinetMap[u.role] = name;
+          }
         }
-        if (newRole && newRole !== 'user' && newRole !== 'admin' && newRole !== 'owner' && newRole !== 'standard staff') {
-          newCabinetMap[newRole] = u.displayName || u.email;
-        }
-        await updateDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap });
-      }
+      });
+      await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
 
     } catch (e) {
       handleDatabaseError(e, OperationType.UPDATE, `users/${userId}`);
@@ -540,11 +542,16 @@ export default function AdminPanel() {
                   const newCabinetMap: Record<string, string> = {};
                   users.forEach(u => {
                     if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-                      newCabinetMap[u.role] = u.displayName || u.email;
+                      const name = u.displayName || u.email;
+                      if (newCabinetMap[u.role]) {
+                        newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
+                      } else {
+                        newCabinetMap[u.role] = name;
+                      }
                     }
                   });
                   const toSave = { ...parliamentData, cabinetMap: newCabinetMap };
-                  await setDoc(doc(db, 'settings', 'parliament'), toSave);
+                  await setDoc(doc(db, 'settings', 'parliament'), toSave, { merge: true });
                   alert('Saved parliament settings');
                 }}
                 className="bg-govuk-blue text-white px-4 py-2 font-bold"
@@ -568,10 +575,15 @@ export default function AdminPanel() {
                   const newCabinetMap: Record<string, string> = {};
                   users.forEach(u => {
                     if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
-                      newCabinetMap[u.role] = u.displayName || u.email;
+                      const name = u.displayName || u.email;
+                      if (newCabinetMap[u.role]) {
+                        newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
+                      } else {
+                        newCabinetMap[u.role] = name;
+                      }
                     }
                   });
-                  await setDoc(doc(db, 'settings', 'parliament'), { ...parliamentData, cabinetMap: newCabinetMap }, { merge: true });
+                  await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
                   alert('Synced roles to Parliament');
                 }}
               >
@@ -616,6 +628,7 @@ export default function AdminPanel() {
                   <option value="Health & Social Secretary">Health Secretary</option>
                   <option value="Leader of the House of Commons">Leader of the Commons</option>
                   <option value="Speaker of the House of Commons">Speaker</option>
+                  <option value="Member of Parliament">Member of Parliament</option>
                   <option value="owner">System Owner</option>
                 </select>
                 <button 
@@ -679,6 +692,7 @@ export default function AdminPanel() {
                                 <option value="Health & Social Secretary">Health Secretary</option>
                                 <option value="Leader of the House of Commons">Leader of the Commons</option>
                                 <option value="Speaker of the House of Commons">Speaker</option>
+                                <option value="Member of Parliament">Member of Parliament</option>
                                 {role === 'owner' && <option value="owner">Owner</option>}
                               </select>
                               <button 

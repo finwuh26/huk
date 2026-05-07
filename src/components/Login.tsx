@@ -4,6 +4,7 @@ import { auth } from '../lib/firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { LogIn, UserPlus } from 'lucide-react';
+import { CrownIcon } from './GDSComponents';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -76,16 +77,7 @@ export default function Login() {
       >
         <div className="mb-6">
           <div className="flex items-center mb-8 w-full">
-            <svg
-              width="32"
-              height="30"
-              viewBox="0 0 32 30"
-              fill="currentColor"
-              className="mr-3 text-black shrink-0"
-              aria-hidden="true"
-            >
-              <path d="M12 6h-2v2h2V6zm4 0h-2v2h2V6zm4 0h-2v2h2V6zm-8 4h-2v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4h-2v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-12 4h16v2H4v-2zm0 4h16v2H4v-2z" />
-            </svg>
+            <CrownIcon className="mr-3 text-black shrink-0" width="32" height="30" />
             <span className="text-2xl font-bold tracking-tight text-black whitespace-nowrap overflow-visible">HUK.GOV</span>
           </div>
           

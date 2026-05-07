@@ -56,7 +56,7 @@ export const CrownIcon = ({ className = "mr-2", width = "30", height = "32" }: {
     alt="UK Gov Logo"
     width={width}
     height={height}
-    className={`${className} object-contain brightness-0 invert`}
+    className={`${className} object-contain`}
   />
 );
 
@@ -89,7 +89,7 @@ export function Header() {
         <div className="govuk-width-container w-full flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Link to="/" className="flex items-center no-underline text-white focus:bg-govuk-focus focus:text-govuk-black p-1 -m-1">
-              <CrownIcon />
+              <CrownIcon className="brightness-0 invert mr-2" />
               <div className="flex flex-col flex-1 whitespace-nowrap">
                 <span className="text-2xl font-bold tracking-tight">HUK.GOV</span>
                 {isHomeOffice && <span className="text-xs uppercase tracking-widest font-bold opacity-80">Home Office</span>}

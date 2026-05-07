@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Remix: HUK.GOV Mockup",
-  "description": "A high-fidelity mockup of the UK Government website, following GDS design patterns.",
+  "name": "HUK.GOV",
+  "description": "The official digital home of the Government of HUK. Access public services, news, and official information.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

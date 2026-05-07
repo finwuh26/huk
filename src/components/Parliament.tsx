@@ -43,20 +43,67 @@ export default function Parliament() {
 
         <h2 className="text-2xl font-bold mb-6">Cabinet Members</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <RoleCard role="Prime Minister" name={cabinetMap["Prime Minister"] || "Vacant"} />
-          <RoleCard role="Deputy Prime Minister" name={cabinetMap["Deputy Prime Minister"] || "Vacant"} />
-          <RoleCard role="Chancellor of the Exchequer" name={cabinetMap["Chancellor of the Exchequer"] || "Vacant"} />
-          <RoleCard role="Secretary of State for Wales" name={cabinetMap["Secretary of State for Wales"] || "Vacant"} />
-          <RoleCard role="Minister for DCMS" name={cabinetMap["Minister for DCMS"] || "Vacant"} />
-          <RoleCard role="Home Secretary" name={cabinetMap["Home Secretary"] || "Vacant"} />
-          <RoleCard role="Defence Secretary" name={cabinetMap["Defence Secretary"] || "Vacant"} />
-          <RoleCard role="Justice Secretary" name={cabinetMap["Justice Secretary"] || "Vacant"} />
-          <RoleCard role="Foreign Secretary" name={cabinetMap["Foreign Secretary"] || "Vacant"} />
-          <RoleCard role="Health & Social Secretary" name={cabinetMap["Health & Social Secretary"] || "Vacant"} />
-          <RoleCard role="Leader of the House of Commons" name={cabinetMap["Leader of the House of Commons"] || "Vacant"} />
-          <RoleCard role="Speaker of the House of Commons" name={cabinetMap["Speaker of the House of Commons"] || "Vacant"} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+          {[
+            "Prime Minister", 
+            "Deputy Prime Minister", 
+            "Chancellor of the Exchequer", 
+            "Secretary of State for Wales", 
+            "Minister for DCMS", 
+            "Home Secretary", 
+            "Defence Secretary", 
+            "Justice Secretary", 
+            "Foreign Secretary", 
+            "Health & Social Secretary", 
+            "Leader of the House of Commons", 
+            "Speaker of the House of Commons"
+          ].map(role => (
+            <RoleCard key={role} role={role} name={cabinetMap[role] || "Vacant"} />
+          ))}
         </div>
+
+        {Object.entries(cabinetMap).some(([role]) => role === "Member of Parliament") && (
+          <>
+            <h2 className="text-2xl font-bold mb-6">Members of Parliament</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(cabinetMap)
+                .filter(([role]) => role === "Member of Parliament")
+                .map(([role, name], idx) => (
+                  <RoleCard key={idx} role={role} name={name} />
+                ))}
+            </div>
+          </>
+        )}
+        
+        {/* Any other roles not explicitly in the top list or MP list */}
+        {Object.entries(cabinetMap).some(([role]) => 
+          ![
+            "Prime Minister", "Deputy Prime Minister", "Chancellor of the Exchequer", 
+            "Secretary of State for Wales", "Minister for DCMS", "Home Secretary", 
+            "Defence Secretary", "Justice Secretary", "Foreign Secretary", 
+            "Health & Social Secretary", "Leader of the House of Commons", 
+            "Speaker of the House of Commons", "Member of Parliament"
+          ].includes(role)
+        ) && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-6">Other Appointments</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(cabinetMap)
+                .filter(([role]) => 
+                  ![
+                    "Prime Minister", "Deputy Prime Minister", "Chancellor of the Exchequer", 
+                    "Secretary of State for Wales", "Minister for DCMS", "Home Secretary", 
+                    "Defence Secretary", "Justice Secretary", "Foreign Secretary", 
+                    "Health & Social Secretary", "Leader of the House of Commons", 
+                    "Speaker of the House of Commons", "Member of Parliament"
+                  ].includes(role)
+                )
+                .map(([role, name]) => (
+                  <RoleCard key={role} role={role} name={name} />
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
