@@ -50,6 +50,7 @@ export default async function handler(req: any, res: any) {
     robloxUsername
   };
   const payloadBase64 = Buffer.from(JSON.stringify(payloadObject), 'utf8').toString('base64');
+  const encodedPayloadBase64 = encodeURIComponent(payloadBase64);
   const profileUrl = `/profile?oauthProvider=roblox&robloxId=${encodeURIComponent(robloxId)}&robloxUsername=${encodeURIComponent(robloxUsername)}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -58,7 +59,7 @@ export default async function handler(req: any, res: any) {
   <body>
     <script>
       if (window.opener) {
-        const payload = JSON.parse(atob('${payloadBase64}'));
+        const payload = JSON.parse(atob(decodeURIComponent('${encodedPayloadBase64}')));
         window.opener.postMessage(payload, window.location.origin);
         window.close();
       } else {

@@ -20,13 +20,14 @@ export default function ProfileSettings() {
       const update: Record<string, any> = {
         [`${provider}Linked`]: true
       };
+      const canWriteProviderProfileFields = role === 'admin' || role === 'owner';
 
-      if (provider === 'discord') {
+      if (provider === 'discord' && canWriteProviderProfileFields) {
         if (typeof payload.discordId === 'string') update.discordId = payload.discordId;
         if (typeof payload.discordUsername === 'string') update.discordUsername = payload.discordUsername;
       }
 
-      if (provider === 'roblox') {
+      if (provider === 'roblox' && canWriteProviderProfileFields) {
         if (typeof payload.robloxId === 'string') update.robloxId = payload.robloxId;
         if (typeof payload.robloxUsername === 'string') update.robloxUsername = payload.robloxUsername;
       }
@@ -44,6 +45,7 @@ export default function ProfileSettings() {
     const discordId = params.get('discordId');
     const discordUsername = params.get('discordUsername');
 
+    // Legacy fallback for older callback URLs that still include *Code params.
     if ((oauthProvider === 'roblox' || oauthProvider === 'discord' || robloxCode || discordCode) && user) {
       const provider = oauthProvider === 'roblox' || oauthProvider === 'discord'
         ? oauthProvider
@@ -88,7 +90,7 @@ export default function ProfileSettings() {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [user]);
+  }, [user, role]);
 
   const handleRobloxConnect = () => {
     const connectUrl = `/api/auth/roblox/url`;
