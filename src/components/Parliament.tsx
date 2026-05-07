@@ -6,6 +6,7 @@ import { db } from '../lib/firebase';
 export default function Parliament() {
   const [sessionInfo, setSessionInfo] = useState({ sessionDate: '', agenda: 'General Debate and Ministers Questions' });
   const [cabinetMap, setCabinetMap] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getDoc(doc(db, 'settings', 'parliament')).then(docSnap => {
@@ -18,10 +19,26 @@ export default function Parliament() {
           setCabinetMap(docSnap.data().cabinetMap);
         }
       }
+      setLoading(false);
+    }).catch(e => {
+      console.error(e);
+      setLoading(false);
     });
   }, []);
 
-  const nextSession = sessionInfo.sessionDate ? new Date(sessionInfo.sessionDate) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+  if (loading) {
+    return (
+      <div className="govuk-width-container govuk-main-wrapper flex flex-col items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-govuk-blue mb-4"></div>
+        <p className="text-xl font-bold">Loading Parliament Data...</p>
+      </div>
+    );
+  }
+
+  const nextSession = sessionInfo.sessionDate ? new Date(sessionInfo.sessionDate) : null;
+  const displayDate = nextSession && !isNaN(nextSession.getTime()) 
+    ? nextSession.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : 'TBC';
   
   return (
     <div className="govuk-width-container govuk-main-wrapper">
@@ -37,7 +54,7 @@ export default function Parliament() {
 
         <section className="bg-white border-l-4 border-govuk-blue p-6 shadow-sm mb-12 flex flex-col items-center text-center">
           <h2 className="text-lg font-bold mb-2 uppercase tracking-wide text-govuk-text-secondary">Next Scheduled Parliament</h2>
-          <p className="text-3xl font-bold mb-4">{nextSession.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-3xl font-bold mb-4">{displayDate}</p>
           <p className="text-md">Agenda: <span className="font-bold">{sessionInfo.agenda}</span></p>
         </section>
 

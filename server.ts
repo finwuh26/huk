@@ -254,12 +254,20 @@ async function getDynamicMetaTags(urlPath: string) {
     });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath, { index: false })); // Disable automatic index.html serving to allow dynamic catch-all below
+    app.use(express.static(distPath, { index: false }));
+    
     // SPA fallback: send index.html for any unknown routes, with dynamic meta tags injected
     app.get('*', async (req, res) => {
-      if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/auth')) {
+      // Skip API and auth routes
+      if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
         return res.status(404).json({ error: 'Not Found' });
       }
+
+      // If it looks like a file (has an extension), don't serve index.html
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        return res.status(404).end();
+      }
+
       try {
         let template = await fs.readFile(path.join(distPath, 'index.html'), 'utf8');
         const dynamicMeta = await getDynamicMetaTags(req.originalUrl);

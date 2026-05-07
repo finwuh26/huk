@@ -170,10 +170,14 @@ export default function AdminPanel() {
     }
   };
 
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
   const saveUserAccount = async () => {
-    if (!editingUserAccount) return;
+    if (!editingUserAccount || isSavingUser) return;
+    setIsSavingUser(true);
     try {
-      await updateDoc(doc(db, 'users', editingUserAccount.id), {
+      const userRef = doc(db, 'users', editingUserAccount.id);
+      await updateDoc(userRef, {
         email: editingUserAccount.email,
         displayName: editingUserAccount.displayName,
         role: editingUserAccount.role,
@@ -185,9 +189,30 @@ export default function AdminPanel() {
         robloxUsername: editingUserAccount.robloxUsername || '',
         robloxId: editingUserAccount.robloxId || '',
       });
+
+      // Update local users list if needed (though onSnapshot should handle it)
+      // and trigger parliament sync
+      const updatedUsers = users.map(u => u.id === editingUserAccount.id ? { ...u, ...editingUserAccount } : u);
+      const newCabinetMap: Record<string, string> = {};
+      updatedUsers.forEach(u => {
+        if (u.role && u.role !== 'user' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'standard staff') {
+          const name = u.displayName || u.email;
+          if (newCabinetMap[u.role]) {
+            newCabinetMap[u.role] = `${newCabinetMap[u.role]}, ${name}`;
+          } else {
+            newCabinetMap[u.role] = name;
+          }
+        }
+      });
+      await setDoc(doc(db, 'settings', 'parliament'), { cabinetMap: newCabinetMap }, { merge: true });
+
+      alert('User account updated and synced successfully.');
       setEditingUserAccount(null);
     } catch (e) {
+      console.error(e);
       handleDatabaseError(e, OperationType.UPDATE, `users/${editingUserAccount.id}`);
+    } finally {
+      setIsSavingUser(false);
     }
   };
 
@@ -943,9 +968,10 @@ export default function AdminPanel() {
               </button>
               <button 
                 onClick={saveUserAccount} 
-                className="px-8 py-2 bg-govuk-blue text-white font-bold hover:bg-govuk-blue-hover flex items-center shadow-md active:scale-95 transition-all"
+                disabled={isSavingUser}
+                className={`px-8 py-2 bg-govuk-blue text-white font-bold hover:bg-govuk-blue-hover flex items-center shadow-md active:scale-95 transition-all ${isSavingUser ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <Save className="mr-2 w-5 h-5" /> Save User Profile
+                <Save className="mr-2 w-5 h-5" /> {isSavingUser ? 'Saving...' : 'Save User Profile'}
               </button>
             </div>
           </motion.div>
