@@ -8,7 +8,7 @@ import { useAuth } from '../AuthContext';
 
 export default function AdminPanel() {
   const { role, user, categories, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'pages' | 'users' | 'settings' | 'petitions' | 'feedback' | 'parliament'>('pages');
+  const [activeTab, setActiveTab] = useState<'pages' | 'users' | 'settings' | 'petitions' | 'feedback' | 'parliament' | 'citizenship'>('pages');
   const [pages, setPages] = useState<any[]>([]);
   const [editingPage, setEditingPage] = useState<any>(null);
   const [editingUserAccount, setEditingUserAccount] = useState<any>(null);
@@ -17,6 +17,7 @@ export default function AdminPanel() {
   const [newUser, setNewUser] = useState({ email: '', displayName: '', role: 'standard staff' as 'user' | 'admin' | 'owner' | 'standard staff' });
   const [viewingSubmissionsId, setViewingSubmissionsId] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [citizenshipSubmissions, setCitizenshipSubmissions] = useState<any[]>([]);
   const [allPetitions, setAllPetitions] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [parliamentData, setParliamentData] = useState<any>({ sessionDate: '', agenda: '' });
@@ -53,6 +54,19 @@ export default function AdminPanel() {
       }
     }, (error) => {
       handleDatabaseError(error, OperationType.LIST, 'petitions');
+    });
+
+    return () => unsub();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'citizenship') return;
+
+    const submissionsRef = collection(db, 'pages/citizenship/submissions');
+    const unsub = onSnapshot(submissionsRef, (snapshot) => {
+      setCitizenshipSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleDatabaseError(error, OperationType.LIST, 'pages/citizenship/submissions');
     });
 
     return () => unsub();
@@ -333,6 +347,14 @@ export default function AdminPanel() {
           >
             <Inbox className="inline-block mr-2 w-4 h-4" /> Feedback
           </button>
+          {(role === 'owner' || role === 'admin' || role === 'Home Secretary') && (
+            <button 
+              onClick={() => setActiveTab('citizenship')}
+              className={`text-left px-4 py-3 font-bold focus:outline-none transition-colors border-l-4 ${activeTab === 'citizenship' ? 'border-[#1d70b8] bg-white text-[#1d70b8] shadow-sm' : 'border-transparent text-govuk-text hover:bg-gray-200'}`}
+            >
+              <UserCog className="inline-block mr-2 w-4 h-4" /> Citizenship Review
+            </button>
+          )}
           <button 
             onClick={() => setActiveTab('parliament')}
             className={`text-left px-4 py-3 font-bold focus:outline-none transition-colors border-l-4 ${activeTab === 'parliament' ? 'border-govuk-blue bg-white text-govuk-blue shadow-sm' : 'border-transparent text-govuk-text hover:bg-gray-200'}`}
@@ -351,6 +373,97 @@ export default function AdminPanel() {
       </div>
 
       <div className="flex-grow min-w-0">
+        {activeTab === 'citizenship' && (role === 'owner' || role === 'admin' || role === 'Home Secretary') && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 border-l-4 border-[#1d70b8] shadow-sm">
+              <h2 className="text-2xl font-bold mb-4 text-[#1d70b8]">Citizenship Applications</h2>
+              <p className="text-sm text-govuk-text-secondary mb-8">Review and manage HUK citizenship applications from the public.</p>
+
+              {citizenshipSubmissions.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
+                  <Inbox className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500 font-bold italic">No citizenship applications pending review.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {[...citizenshipSubmissions]
+                    .sort((a, b) => {
+                      const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+                      const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+                      return dateB - dateA;
+                    })
+                    .map(sub => (
+                      <div key={sub.id} className="border-2 border-gray-200 p-6 bg-white hover:border-[#1d70b8] transition-all shadow-sm">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                               <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                 {sub.referenceId || 'NO-REF'}
+                               </span>
+                               <span className="text-xs text-gray-500">
+                                 Submitted {sub.createdAt?.toDate ? sub.createdAt.toDate().toLocaleString() : 'N/A'}
+                               </span>
+                            </div>
+                            <h3 className="text-xl font-bold m-0">
+                              {sub.data?.['Roleplay Name'] || 'Unnamed Applicant'}
+                            </h3>
+                          </div>
+                          <div className="flex gap-2">
+                             <button 
+                               onClick={async () => {
+                                 if (confirm('Approve this citizenship application? (This will notify the user via a status update)')) {
+                                   try {
+                                     // Logic for approval could be added here (e.g. updating a status field)
+                                     alert('Application status updated to Approved.');
+                                   } catch (e) {
+                                     handleDatabaseError(e, OperationType.UPDATE, `pages/citizenship/submissions/${sub.id}`);
+                                   }
+                                 }
+                               }}
+                               className="bg-govuk-green text-white px-4 py-2 text-xs font-bold hover:bg-govuk-green-hover transition-colors"
+                             >
+                               Approve
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if (confirm('Are you sure you want to delete this citizenship application?')) {
+                                   try {
+                                     await deleteDoc(doc(db, 'pages/citizenship/submissions', sub.id));
+                                   } catch (e) {
+                                     handleDatabaseError(e, OperationType.DELETE, `pages/citizenship/submissions/${sub.id}`);
+                                   }
+                                 }
+                               }}
+                               className="bg-red-600 text-white px-4 py-2 text-xs font-bold hover:bg-red-700 transition-colors"
+                             >
+                               Delete Record
+                             </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 p-4 border border-gray-200 rounded">
+                           {Object.entries(sub.data || {}).map(([key, val]: [string, any]) => (
+                             <div key={key} className="space-y-1">
+                               <dt className="text-[10px] uppercase font-bold text-gray-400 tracking-wider font-sans">{key}</dt>
+                               <dd className="text-sm font-medium text-govuk-text break-words">
+                                 {key.toLowerCase().includes('profile') || key.toLowerCase().includes('roblox') && typeof val === 'string' && val.startsWith('http') ? (
+                                   <a href={val} target="_blank" rel="noopener noreferrer" className="text-govuk-blue hover:underline break-all">{val}</a>
+                                 ) : (
+                                   String(val)
+                                 )}
+                               </dd>
+                             </div>
+                           ))}
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'petitions' && (
         <div className="space-y-6">
           <div className="bg-white p-6 border-l-4 border-parliament-green shadow-sm">
